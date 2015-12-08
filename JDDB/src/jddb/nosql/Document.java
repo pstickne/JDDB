@@ -1,5 +1,7 @@
 package jddb.nosql;
 
+import java.util.Set;
+
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -20,6 +22,11 @@ public class Document
 		parseJSON(json);
 	}
 	
+	public Document(JSONObject obj)
+	{
+		json = obj;
+	}
+	
 	public void parseJSON(String json)
 	{
 		if( parser == null )
@@ -33,15 +40,7 @@ public class Document
 		
 		this.json = (JSONObject) prejson; 
 	}
-	public JSONObject getJSONObject()
-	{
-		return json;
-	}
-	public boolean copy(Document doc)
-	{
-		json = doc.getJSONObject();
-		return true;
-	}
+
 	public boolean containsKey(String key)
 	{
 		return json.containsKey(key);
@@ -50,6 +49,28 @@ public class Document
 	{
 		return json.containsValue(value);
 	}
+	
+	public JSONObject getJSONObject()
+	{
+		return json;
+	}
+	
+	public boolean copy(JSONObject obj)
+	{
+		json = obj;
+		return true;
+	}
+	public boolean copy(Document doc)
+	{
+		json = doc.getJSONObject();
+		return true;
+	}
+	@SuppressWarnings("unchecked")
+	public Set<String> getKeys()
+	{
+		return json.keySet();
+	}
+	
 	public Object get(Object key)
 	{
 		return json.get(key);
@@ -58,6 +79,10 @@ public class Document
 	public void put(String key, Object value)
 	{
 		json.put(key, value);
+	}
+	public Object remove(Object key)
+	{
+		return json.remove(key);
 	}
 	
 	@Override

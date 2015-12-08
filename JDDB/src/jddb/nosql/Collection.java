@@ -20,16 +20,16 @@ public class Collection
 {
 	private JSONParser parser = null;
 
-	public File collectionFile = null;
-	private JSONObject collectionObject = null;
-	private JSONObject options = null;
-	private JSONArray documents = null;
+	private File collectionFile = null;
+	public static JSONObject collection = null;
+	public static JSONObject options = null;
+	public static JSONArray documents = null;
 	
 	public Collection(String path, String name)
 	{
 		try 
 		{
-			this.collectionFile = new File(path, name + ".json");
+			this.collectionFile = new File(path, name);
 			load();
 		} 
 		catch (IOException | ParseException e) 
@@ -38,45 +38,47 @@ public class Collection
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void load() throws FileNotFoundException, IOException, ParseException 
 	{
-		this.parser = new JSONParser();
+		parser = new JSONParser();
 
 		if( collectionFile.exists() )
 		{
-			this.collectionObject = (JSONObject) parser.parse(new FileReader(collectionFile));
+			collection = (JSONObject) parser.parse(new FileReader(collectionFile));
 			
-			if( collectionObject.containsKey("options") )	
-				this.options = (JSONObject) collectionObject.get("options");
+			if( collection.containsKey("options") )	
+				options = (JSONObject) collection.get("options");
 			else
-				this.options = new JSONObject();
+				options = new JSONObject();
 			
-			if( collectionObject.containsKey("documents") )
-				this.documents = (JSONArray) collectionObject.get("documents");
+			if( collection.containsKey("documents") )
+				documents = (JSONArray) collection.get("documents");
 			else
-				this.documents = new JSONArray();
+				documents = new JSONArray();
 		}
 		else
 		{
-			this.options = new JSONObject();
-			this.documents = new JSONArray();
-			this.collectionObject = new JSONObject();
-			
-			collectionObject.put("options", options);
-			collectionObject.put("documents", documents);
+			collection = new JSONObject();
+			options = new JSONObject();
+			documents = new JSONArray();
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	public boolean save() throws IOException
 	{
-		if( !collectionFile.exists() )
+		if( !collectionFile.exists() ) {
+			collectionFile.getParentFile().mkdirs();
 			collectionFile.createNewFile();
+		}
+		
+		collection.put("options", options);
+		collection.put("documents", documents);
 		
 		FileOutputStream out = null;
 		try {
 			out = new FileOutputStream(collectionFile);
-			out.write(collectionObject.toJSONString().getBytes());
+			out.write(collection.toJSONString().getBytes());
 			out.flush();
 			out.getFD().sync();
 			out.close();
@@ -85,11 +87,6 @@ public class Collection
 			e.printStackTrace();
 		}
 		return false;
-	}
-	
-	public int count(Document query)
-	{
-		return find(query).count();
 	}
 	
 	public boolean drop()
@@ -134,7 +131,7 @@ public class Collection
 	}
 	public Cursor find(Document query, Document projection)
 	{
-		return new Cursor(this, query, projection);
+		return new Cursor(query, projection);
 	}
 	public boolean update(Document query, Document update)
 	{
