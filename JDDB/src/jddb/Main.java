@@ -1,10 +1,11 @@
 package jddb;
 
-import java.io.Console;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+
+import jddb.io.Console;
 
 public class Main 
 {
@@ -34,27 +35,7 @@ public class Main
 			}
 		}
 		
-		System.out.println("");
-		Console console = System.console();
-		if( console == null ) {
-			System.err.println("No console has been detected, sorry.");
-			System.err.println("The program will now exit.\n");
-			System.exit(1);
-		}
-		
-		String cmd = "";
-		while(true)
-		{
-			cmd = console.readLine("> ");
-			
-			if( cmd.equals("exit") )
-				break;
-			
-			else if( cmd.contains("USE ") )
-			{
-				
-			}
-		}
+		new Console(prop).init();
 	}
 	
 	

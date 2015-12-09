@@ -18,83 +18,133 @@ import org.json.simple.parser.ParseException;
 
 public class Collection 
 {
-	private JSONParser parser = null;
-
 	private File collectionFile = null;
-	public static JSONObject collection = null;
-	public static JSONObject options = null;
-	public static JSONArray documents = null;
+	
+	private JSONParser parser = null;
+	private JSONObject Jcollection = null;
+	private JSONObject Joptions = null;
+	private JSONArray Jdocuments = null;
+	
+	public Map<String, Object> collection = null;
+	public Map<String, Object> options = null;
+	public List<Document> documents = null;
+	
+	private static Collection _instance = null;
+	public static Collection getCollection()
+	{
+		if( _instance == null )
+			_instance = new Collection();
+		return _instance;
+	}
+	
+	public Collection()
+	{
+		
+	}
 	
 	public Collection(String path, String name)
 	{
-		try 
-		{
-			this.collectionFile = new File(path, name);
-			load();
-		} 
-		catch (IOException | ParseException e) 
-		{
-			e.printStackTrace();
-		}
+		connectTo(path, name);
 	}
 	
-	public void load() throws FileNotFoundException, IOException, ParseException 
+	public Collection connectTo(String path, String name)
+	{
+		collectionFile = new File(path, name);
+		return this;
+	}
+	
+	public void load() throws FileNotFoundException, IOException 
 	{
 		parser = new JSONParser();
 
 		if( collectionFile.exists() )
 		{
-			collection = (JSONObject) parser.parse(new FileReader(collectionFile));
+			try {
+				Jcollection = (JSONObject) parser.parse(new FileReader(collectionFile));
+			} catch (ParseException e) {
+				Jcollection = new JSONObject();
+			}
 			
-			if( collection.containsKey("options") )	
-				options = (JSONObject) collection.get("options");
+			if( Jcollection.containsKey("options") )
+				Joptions = (JSONObject) Jcollection.get("options");
 			else
-				options = new JSONObject();
+				Joptions = new JSONObject();
 			
-			if( collection.containsKey("documents") )
-				documents = (JSONArray) collection.get("documents");
+			if( Jcollection.containsKey("documents") )
+				Jdocuments = (JSONArray) Jcollection.get("documents");
 			else
-				documents = new JSONArray();
+				Jdocuments = new JSONArray();
 		}
 		else
 		{
-			collection = new JSONObject();
-			options = new JSONObject();
-			documents = new JSONArray();
+			Jcollection = new JSONObject();
+			Joptions = new JSONObject();
+			Jdocuments = new JSONArray();
 		}
+		
+		for( Object o : Jdocuments )
+			documents.add(new Document(o));
 	}
 	
 	@SuppressWarnings("unchecked")
-	public boolean save() throws IOException
+	public void save() throws IOException
 	{
 		if( !collectionFile.exists() ) {
 			collectionFile.getParentFile().mkdirs();
 			collectionFile.createNewFile();
 		}
 		
-		collection.put("options", options);
-		collection.put("documents", documents);
+		Jcollection.put("options", Joptions);
+		Jcollection.put("documents", Jdocuments);
 		
-		FileOutputStream out = null;
-		try {
-			out = new FileOutputStream(collectionFile);
-			out.write(collection.toJSONString().getBytes());
-			out.flush();
-			out.getFD().sync();
-			out.close();
-			return true;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return false;
+		FileOutputStream out = new FileOutputStream(collectionFile);
+		out.write(Jcollection.toJSONString().getBytes());
+		out.flush();
+		out.getFD().sync();
+		out.close();
 	}
+	
+	
+	
+	
+	public File getCurrentBasePathFile()
+	{
+		return collectionFile.getParentFile();
+	}
+	public String getCurrentBasePath() throws IOException
+	{
+		return collectionFile.getParentFile().getCanonicalPath().replaceAll("\\", "/");
+	}
+	public String getCurrentCollectionFile()
+	{
+		return collectionFile.getName();
+	}
+	
+	
+	
 	
 	public boolean drop()
 	{
 		return collectionFile.delete();
 	}
 	
-	@SuppressWarnings("unchecked")
+	
+	
+	
+	
+	public Cursor find(Document query)
+	{
+		return find(query, new Document());
+	}
+	public Cursor find(Document query, Document projection)
+	{
+		return new Cursor(query, projection);
+	}
+	
+	
+	
+	
+	
 	public boolean insert(Document doc)
 	{
 		if( !doc.containsKey("_id") )
@@ -114,25 +164,10 @@ public class Collection
 		return result;
 	}
 	
-	public boolean save(Document doc) throws IOException
-	{
-		if( !doc.containsKey("_id") )
-			return insert(doc);
-		
-		Map<String, Boolean> options = new HashMap<String, Boolean>();
-		options.put("upsert", true);
-		options.put("multi", false);
-		
-		return update(new Document("\"_id\":" + doc.get("_id")), doc, options);
-	}
-	public Cursor find(Document query)
-	{
-		return find(query, new Document());
-	}
-	public Cursor find(Document query, Document projection)
-	{
-		return new Cursor(query, projection);
-	}
+	
+	
+	
+	
 	public boolean update(Document query, Document update)
 	{
 		Map<String, Boolean> options = new HashMap<String, Boolean>();
@@ -157,6 +192,11 @@ public class Collection
 		
 		return true;
 	}
+	
+	
+	
+	
+	
 	public boolean remove(Document query)
 	{
 		return remove(query, false);

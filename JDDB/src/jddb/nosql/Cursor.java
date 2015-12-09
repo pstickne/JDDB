@@ -5,8 +5,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import org.json.simple.JSONObject;
-
 public class Cursor implements Iterator<Document>
 {
 	private Document query = null;
@@ -23,19 +21,18 @@ public class Cursor implements Iterator<Document>
 		runQuery();
 	}
 	
-	@SuppressWarnings("unchecked")
 	private void runQuery()
 	{
 		boolean inc = true;
 		Document documentIn = null, documentOut = null;
 		Set<String> queryKeys = query.getKeys(); 
 		Set<String> projectionKeys = projection.getKeys();
-		Iterator<JSONObject> it = Collection.documents.iterator();
+		Iterator<Document> it = Collection.getCollection().documents.iterator();
 		
 		while( it.hasNext() )
 		{
 			inc = true;
-			documentIn = new Document(it.next());
+			documentIn = it.next();
 			
 			for (String key : queryKeys)
 				if( !documentIn.containsKey(key) || !documentIn.get(key).equals(query.get(key)) ) {

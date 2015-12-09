@@ -22,6 +22,11 @@ public class Document
 		parseJSON(json);
 	}
 	
+	public Document(Object obj)
+	{
+		json = (JSONObject) obj;
+	}
+	
 	public Document(JSONObject obj)
 	{
 		json = obj;
