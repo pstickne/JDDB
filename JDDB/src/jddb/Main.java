@@ -1,32 +1,66 @@
 package jddb;
 
+import java.io.Console;
+import java.io.FileInputStream;
 import java.io.IOException;
-
-import jddb.nosql.Collection;
-import jddb.nosql.Document;
+import java.io.InputStream;
+import java.util.Properties;
 
 public class Main 
 {
 	public static void main(String ...args)
 	{
-		String basePath = "C:/jddb/";
-		String file = "collection.json";
-		
-		Document query = new Document("{\"group\": 1}");
-		Collection collection = new Collection(basePath, file);
-		
-		for( int i = 0; i < 4; i++ ) {
-			for( int j = 0; j < 20000; j++ )
-				collection.insert(new Document("{\"_id\": " + (i*j+j) + ", \"group\": " + ((i*j+j)%2000) + "}"));
-			System.gc();
+		if( args.length < 1 )
+		{
+			usage();
+			return;
 		}
 		
-//		System.out.println(collection.find(query));
+		InputStream in = null;
+		Properties prop = new Properties();
 		
 		try {
-			collection.save();
+			in = new FileInputStream(args[0]);
+			prop.load(in);
 		} catch (IOException e) {
 			e.printStackTrace();
+		} finally {
+			if( in != null ) {
+				try {
+					in.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
+		
+		System.out.println("");
+		Console console = System.console();
+		if( console == null ) {
+			System.err.println("No console has been detected, sorry.");
+			System.err.println("The program will now exit.\n");
+			System.exit(1);
+		}
+		
+		String cmd = "";
+		while(true)
+		{
+			cmd = console.readLine("> ");
+			
+			if( cmd.equals("exit") )
+				break;
+			
+			else if( cmd.contains("USE ") )
+			{
+				
+			}
+		}
+	}
+	
+	
+	
+	public static void usage()
+	{
+		System.out.println("USAGE: ./JDDB config.properties\n");
 	}
 }

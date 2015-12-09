@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="build" name="Create Runnable Jar for Project JDDB with Jar-in-Jar Loader">
+
+	<path id="libs">
+		<fileset dir="libs" includes="*.jar" />
+	</path>
+	
+    <target name="build">
+    	
+    	<javac  srcdir="src/"
+    			destdir="bin"
+    			includeantruntime="false"
+    			failonerror="false"
+    			debug="true">
+    		<classpath refid="libs" />
+    	</javac>
+    	
+        <jar basedir="bin/" destfile="build/jddb.jar">
+            <manifest>
+            	<attribute name="Manifest-Version" value="1.0" />
+            	<attribute name="Created-By" value="pstickne"/>
+                <attribute name="Main-Class" value="jddb.Main"/>
+                <attribute name="Class-Path" value="."/>
+            </manifest>
+            <fileset dir="bin"/>
+        </jar>
+    	
+		<waitfor><available file="build/jddb.jar" /></waitfor>
+        <copy file="build/jddb.jar" todir="C:/jddb/" />
+    	
+    </target>
+	
+</project>
