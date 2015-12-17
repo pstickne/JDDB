@@ -288,6 +288,7 @@ public class ShardNode extends Node
 		else if( cmd.toLowerCase().startsWith("db.") )
 		{
 			parts = cmd.split(".");
+			
 		}
 		else
 		{
