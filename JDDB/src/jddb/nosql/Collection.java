@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -19,6 +20,7 @@ import org.json.simple.parser.ParseException;
 public class Collection 
 {
 	private File collectionFile = null;
+	private File tempFile = null;
 	
 	private JSONParser parser = null;
 	private JSONObject Jcollection = null;
@@ -29,27 +31,41 @@ public class Collection
 	public Map<String, Object> options = null;
 	public List<Document> documents = null;
 	
-	private static Collection _instance = null;
-	public static Collection getCollection()
-	{
-		if( _instance == null )
-			_instance = new Collection();
-		return _instance;
-	}
-	
 	public Collection()
 	{
+		Jcollection = new JSONObject();
+		Joptions = new JSONObject();
+		Jdocuments = new JSONArray();
 		
+		collection = new HashMap<String, Object>();
+		options = new HashMap<String, Object>();
+		documents = new ArrayList<Document>();
 	}
 	
 	public Collection(String path, String name)
 	{
-		connectTo(path, name);
+		Jcollection = new JSONObject();
+		Joptions = new JSONObject();
+		Jdocuments = new JSONArray();
+		
+		collection = new HashMap<String, Object>();
+		options = new HashMap<String, Object>();
+		documents = new ArrayList<Document>();
+		
+		try {
+			connectTo(path, name);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
 	}
 	
-	public Collection connectTo(String path, String name)
+	public Collection connectTo(String path, String name) throws FileNotFoundException
 	{
-		collectionFile = new File(path, name);
+		tempFile = new File(path, name);
+		if( !tempFile.exists() )
+			throw new FileNotFoundException("File does not exist");
+		
+		collectionFile = tempFile;
 		return this;
 	}
 	
@@ -61,7 +77,7 @@ public class Collection
 		{
 			try {
 				Jcollection = (JSONObject) parser.parse(new FileReader(collectionFile));
-			} catch (ParseException e) {
+			} catch (ParseException | ClassCastException e) {
 				Jcollection = new JSONObject();
 			}
 			
@@ -74,12 +90,6 @@ public class Collection
 				Jdocuments = (JSONArray) Jcollection.get("documents");
 			else
 				Jdocuments = new JSONArray();
-		}
-		else
-		{
-			Jcollection = new JSONObject();
-			Joptions = new JSONObject();
-			Jdocuments = new JSONArray();
 		}
 		
 		for( Object o : Jdocuments )
@@ -111,9 +121,14 @@ public class Collection
 	{
 		return collectionFile.getParentFile();
 	}
-	public String getCurrentBasePath() throws IOException
+	public String getCurrentBasePath()
 	{
-		return collectionFile.getParentFile().getCanonicalPath().replaceAll("\\", "/");
+		try {
+			return collectionFile.getParentFile().getCanonicalPath();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 	public String getCurrentCollectionFile()
 	{
@@ -138,7 +153,7 @@ public class Collection
 	}
 	public Cursor find(Document query, Document projection)
 	{
-		return new Cursor(query, projection);
+		return new Cursor(this, query, projection);
 	}
 	
 	

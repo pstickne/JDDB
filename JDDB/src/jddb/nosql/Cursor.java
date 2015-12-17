@@ -7,13 +7,15 @@ import java.util.Set;
 
 public class Cursor implements Iterator<Document>
 {
+	private Collection collection = null;
 	private Document query = null;
 	private Document projection = null;
 	
 	private List<Document> documents = null; 
 	
-	public Cursor(Document query, Document projection)
+	public Cursor(Collection collection, Document query, Document projection)
 	{
+		this.collection = collection;
 		this.query = query;
 		this.projection = projection;
 		
@@ -27,7 +29,7 @@ public class Cursor implements Iterator<Document>
 		Document documentIn = null, documentOut = null;
 		Set<String> queryKeys = query.getKeys(); 
 		Set<String> projectionKeys = projection.getKeys();
-		Iterator<Document> it = Collection.getCollection().documents.iterator();
+		Iterator<Document> it = collection.documents.iterator();
 		
 		while( it.hasNext() )
 		{

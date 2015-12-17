@@ -4,16 +4,17 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Properties;
 
-import jddb.io.Console;
-
 public class Node implements INode
 {
 	protected String SERVER = null;
 	protected int PORT = 0;
 	
+	protected String BASEPATH = null;
+	protected String COLLECTIONFILE = null;
+	
 	protected Socket csock = null;
 	protected ServerSocket ssock = null;
-	protected Console console = null;
+	
 	protected Properties properties = null;
 	
 	public Node(Properties prop)

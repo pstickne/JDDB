@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import jddb.io.ProcessInputStream;
-import jddb.io.ProcessOutputStream;
+import jddb.io.ProcessSocketInput;
+import jddb.io.ProcessSocketOutput;
 
 public class ManagerNode extends Node
 {
@@ -198,22 +198,6 @@ public class ManagerNode extends Node
 					System.out.println("New MasterNode connected from " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
 					masterThread = this;
 					isMaster = true;
-					
-					ProcessInputStream instream = new ProcessInputStream(socket.getInputStream()) {
-						@Override
-						public void onStreamInput() {
-							
-						}
-					};
-					instream.start();
-					
-					ProcessOutputStream outstream = new ProcessOutputStream(socket.getOutputStream()) {
-						@Override
-						public void onStreamOutput() {
-							
-						}
-					};
-					outstream.start();
 				}
 				
 				System.out.println("New shard connected from " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());

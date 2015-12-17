@@ -1,17 +1,307 @@
 package jddb.node;
 
-import java.io.BufferedReader;
 import java.io.Console;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.util.Properties;
 
+import jddb.io.ProcessConsoleInput;
+import jddb.io.ProcessSocketInput;
+import jddb.nosql.Collection;
+
 public class ShardNode extends Node
 {
+	private Collection COLLECTION = null;
+	
+	/**
+	 * Creates a database shard that will provide horizontal partitioning 
+	 * to your database.<br><br>
+	 * 
+	 * Each shard will have its own separate space on disk as well as its
+	 * own individual JVM memory space. Shards should be started up in 
+	 * separate consoles to provide this functionality and should also use
+	 * separate config.properties files. 
+	 * 
+	 * @param prop The configuration settings for this shard
+	 */
+	public ShardNode(Properties prop)
+	{
+		super(prop);
+		
+		
+		// Extract the server address and port from the property file
+		SERVER = properties.getProperty("server").trim();
+		PORT = Integer.parseInt(properties.getProperty("port").trim());
+		
+		
+		// Extract the basePath and collection file from the property file
+		BASEPATH = properties.getProperty("basePath").trim();
+		COLLECTIONFILE = properties.getProperty("file").trim();
+		
+		
+		/*
+		 * Here we want to check for the loopback interface.
+		 * In order to connect to a socket on the loopback interface which 
+		 * is the current machine, we need to pass null as the address argument.
+		 * 
+		 * Therefore, localhost and 127.0.0.1 must be changed to null if passed.
+		 */
+		if( SERVER.equalsIgnoreCase("localhost") || SERVER.equalsIgnoreCase("127.0.0.1") )
+			SERVER = null;
+		
+		
+		// Create a new shard specific collection
+		COLLECTION = new Collection(BASEPATH, COLLECTIONFILE);
+		try {
+			COLLECTION.load();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Calling this method on a Node will attempt to establish a connection
+	 * to the server address and port specified in the config file provided
+	 * to this application as a command line parameter.<br><br>
+	 * 
+	 * Once a connection has been established, a socket input stream listener
+	 * will be created to listen for incoming requests from the server.<br><br>
+	 * 
+	 * Likewise, a local console input listener will be created to listen for
+	 * incoming requests made locally by the user.
+	 */
+	@Override
+	public void start() 
+	{
+		super.start();
+		
+		/*
+		 * Register a new virtual machine shutdown hook.
+		 * The JVM will run this code in response to two kinds of events:
+		 * 
+		 * 		1) 	The program exits normally, when the last non-daemon thread exists
+		 * 			or when the exit method is invoked
+		 * 		2)	The JVM is terminated in response to a user interrupt, such as 
+		 * 			typing ^C or such as when the user logs off or system shuts down.
+		 */
+		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+			@Override public void run() {
+				stop();
+			}
+		}));
+		
+		
+		/*
+		 * Starup the ProcessConsoleInput listener.
+		 * 
+		 * This listens on the current console for user input. 
+		 * The user inputs requests in the form of a String command line argument
+		 * which will be processed by the console.
+		 */
+		ProcessConsoleInput pci = new ProcessConsoleInput(System.console()) {
+			@Override
+			public void onConsoleInput(String cmd) {
+				exec(System.console(), cmd);
+			}
+		};
+		pci.start();
+		
+		
+		while( true )
+		{
+			try {
+				/*
+				 * Create socket connect to SERVER:PORT
+				 * If this line throws an error because we can't connect,
+				 * we will jump down to the ConnectException catch handler
+				 * and do nothing but wait and try to connect again until
+				 * a conenction can be established.
+				 */
+				csock = new Socket(SERVER, PORT);
+				
+				/*
+				 * Startup the ProcessInputStream listener.
+				 * 
+				 * This listens on the socket connected to the server for any incoming requests. 
+				 * These requests are in the form of a String command line argument to be 
+				 * processed by the console.
+				 */
+				ProcessSocketInput pis = new ProcessSocketInput(csock) {
+					@Override
+					public void onStreamInput(String input) {
+						exec(csock, input);
+					}
+				};
+				pis.start();
+				
+				// We have a connection to the server and stared the socket input listener,
+				// now we can break out of the loop and continue execution.
+				break;
+				
+			} catch (ConnectException e) {
+				// The server isn't started yet so just keep looping
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+			// Sleep for 5 seconds so that we have time to start the server if required
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/**
+	 * Calling this method on a Node will attempt to close any open
+	 * sockets that have been connected to the server. 
+	 */
+	@Override
+	public void stop() 
+	{
+		super.stop();
+		
+		// Close the socket if it is not null
+		try {
+			if( csock != null )
+				csock.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Executes the command on the shard that was supplied by console input.<br>
+	 * This is just a function wrapper that specifies the output stream to 
+	 * send the results to once the execution has finished.
+	 * 
+	 * @param console The console the user is using
+	 * @param cmd The command to execute
+	 */
+	public void exec(Console console, String cmd)
+	{
+		exec(System.out, cmd);
+	}
+	
+	/**
+	 * Executes the command on the shard that was supplied by socket input
+	 * This is just a function wrapper that specifies the output stream to 
+	 * send the results to once the execution has finished.
+	 * 
+	 * @param socket The socket connected to the server
+	 * @param cmd The command to execute
+	 */
+	public void exec(Socket socket, String cmd)
+	{
+		try {
+			exec(socket.getOutputStream(), cmd);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Executes the command on the shard.<br><br>
+	 * 
+	 * Once the execution has finished, the results will then be pushed
+	 * to the output stream that was previously specified by the wrapper
+	 * functions.
+	 * 
+	 * @param out The output stream to send the results to
+	 * @param cmd The command to execute
+	 */
+	public void exec(OutputStream stream, String cmd)
+	{
+		String parts[];
+		PrintWriter out = new PrintWriter(stream);
+		
+		// Happens when the user hits ^C on the keyboard
+		if( cmd == null )
+			return;
+		
+		if( cmd.toLowerCase().equals("exit") )
+			System.exit(0);
+		
+		else if( cmd.toLowerCase().startsWith("use") )
+		{
+			parts = cmd.split(" ");
+			if( parts.length == 2 )
+			{
+				String c = parts[1];
+				
+				if( !COLLECTION.getCurrentCollectionFile().equals(c) )
+				{
+					try {
+						COLLECTION.save();
+						COLLECTION.connectTo(COLLECTION.getCurrentBasePath(), c);
+					} catch (FileNotFoundException e) {
+						out.println(e.toString());
+						out.println("\nSee: SHOW COLLECTIONS\n");
+					} catch (IOException e) {
+						out.println(e.toString());
+					}
+				}
+			}
+			else
+				out.println("\nUsage: USE [collection_name]\n");
+		}
+		else if( cmd.toLowerCase().startsWith("show") || cmd.toLowerCase().startsWith("list") )
+		{
+			parts = cmd.split(" ");
+			if( parts.length == 2 )
+			{
+				String c = parts[1];
+				
+				if( c.equalsIgnoreCase("collections") )
+				{
+					File file = new File(COLLECTION.getCurrentBasePath());
+					File files[] = file.listFiles(new FilenameFilter() {
+						@Override public boolean accept(File dir, String name) {
+							return name.endsWith(".json");
+						}
+					});
+					
+					for( File f : files )
+						out.println(f.getName());
+				}
+				else if( c.equalsIgnoreCase("status") )
+				{
+					out.println("Using Server Address: " + (SERVER == null ? "localhost" : SERVER));
+					out.println("Using Base Path: " + COLLECTION.getCurrentBasePath());
+					out.println("Using Database: " + COLLECTION.getCurrentCollectionFile());
+				}
+				else
+					out.println("\nUsage: " + parts[0] + " [collections | status]\n");
+			}
+			else
+				out.println("\nUsage: " + parts[0] + " [collections | status]\n");
+		}
+		else if( cmd.toLowerCase().startsWith("db.") )
+		{
+			parts = cmd.split(".");
+		}
+		else
+		{
+			out.println("\nUsage: jddb.jar config.properties\n");
+			out.println("Commands:");
+			out.printf("\t%-40s\t%s\n", "HELP", "Shows the help menu.");
+			out.printf("\t%-40s\t%s\n", "USE  [collection]", "Change your current document collection to the specified one.");
+			out.printf("\t%-40s\t%s\n", "SHOW [collections | status]", "Display information about related topic.");
+			out.printf("\t%-40s\t%s\n", "LIST [collections | status]", "Alias of SHOW.");
+			out.println("");
+		}
+		out.flush();
+	}
+	
 	public static void main(String ...args)
 	{
 		if( args.length < 1 ) {
@@ -38,68 +328,6 @@ public class ShardNode extends Node
 		}
 
 		new ShardNode(prop).start();
-	}
-
-	public ShardNode(Properties prop)
-	{
-		super(prop);
-		
-		SERVER = properties.getProperty("server").trim();
-		PORT = Integer.parseInt(properties.getProperty("port").trim());
-		
-		// check for loopback interface
-		if( SERVER.equalsIgnoreCase("localhost") || SERVER.equalsIgnoreCase("127.0.0.1") )
-			SERVER = null;
-	}
-	
-	@Override
-	public void start() 
-	{
-		super.start();
-		
-		BufferedReader in = null;
-		PrintWriter out = null;
-		
-		try {
-			csock = new Socket(SERVER, PORT);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-			@Override public void run() {
-				stop();
-			}
-		}));
-		
-		try {
-			in = new BufferedReader(new InputStreamReader(csock.getInputStream()));
-			out = new PrintWriter(csock.getOutputStream(), true);
-			
-			Console c = System.console();
-			while( true )
-			{
-				String line = c.readLine("> ");
-				out.println(line);
-				out.flush();
-			}
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	@Override
-	public void stop() 
-	{
-		super.stop();
-		
-		try {
-			if( csock != null )
-				csock.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 	
 	public static void usage()

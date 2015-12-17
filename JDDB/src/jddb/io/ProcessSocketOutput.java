@@ -3,11 +3,11 @@ package jddb.io;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 
-public abstract class ProcessOutputStream extends Thread
+public abstract class ProcessSocketOutput extends Thread
 {
 	private PrintWriter out = null;
 	
-	public ProcessOutputStream(OutputStream stream)
+	public ProcessSocketOutput(OutputStream stream)
 	{
 		out = new PrintWriter(stream);
 	}
