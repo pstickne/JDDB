@@ -3,6 +3,8 @@ package jddb.io;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Properties;
 
 import jddb.nosql.Collection;
@@ -27,6 +29,11 @@ public class Console
 	public Console(Properties p)
 	{
 		props = p;
+	}
+	
+	public Console(InputStream in, OutputStream out, Properties p)
+	{
+		
 	}
 	
 	public void init()
@@ -125,7 +132,9 @@ public class Console
 					}
 					else if( c.equalsIgnoreCase("status") )
 					{
-						
+						System.out.println("Using Server Address: " + server);
+						System.out.println("Using Base Path: " + basePath);
+						System.out.println("Using Database: " + file);
 					}
 					else
 						System.out.println("\nUsage: " + parts[0] + " [collections | status]\n");
@@ -146,21 +155,3 @@ public class Console
 		}
 	}
 }
-/*
-Document query = new Document("{\"group\": 1}");
-Collection collection = new Collection(basePath, file);
-
-for( int i = 0; i < 4; i++ ) {
-	for( int j = 0; j < 20000; j++ )
-		collection.insert(new Document("{\"_id\": " + (i*j+j) + ", \"group\": " + ((i*j+j)%2000) + "}"));
-	System.gc();
-}
-
-//System.out.println(collection.find(query));
-
-try {
-	collection.save();
-} catch (IOException e) {
-	e.printStackTrace();
-}
-*/

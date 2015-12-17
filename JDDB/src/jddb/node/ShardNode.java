@@ -10,7 +10,7 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Properties;
 
-public class MasterNode extends Node 
+public class ShardNode extends Node
 {
 	public static void main(String ...args)
 	{
@@ -37,10 +37,10 @@ public class MasterNode extends Node
 			}
 		}
 
-		new MasterNode(prop).start();
+		new ShardNode(prop).start();
 	}
-	
-	public MasterNode(Properties prop)
+
+	public ShardNode(Properties prop)
 	{
 		super(prop);
 		
@@ -94,10 +94,16 @@ public class MasterNode extends Node
 	{
 		super.stop();
 		
+		try {
+			if( csock != null )
+				csock.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public static void usage()
 	{
-		System.out.println("USAGE: ./jddb-master config.properties\n");
+		System.out.println("USAGE: ./JDDB config.properties\n");
 	}
 }

@@ -1,39 +1,33 @@
 package jddb.node;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
+import java.util.Properties;
+
+import jddb.io.Console;
 
 public class Node implements INode
 {
+	protected String SERVER = null;
+	protected int PORT = 0;
+	
 	protected Socket csock = null;
 	protected ServerSocket ssock = null;
+	protected Console console = null;
+	protected Properties properties = null;
 	
-	protected String thisIP = "";
-	protected Integer thisPort = 0;
-	
-	public Node(Integer port)
+	public Node(Properties prop)
 	{
-		thisPort = port;
-		thisIP = getMyIP();
+		properties = prop;
 	}
-	
-	protected String getMyIP()
-	{
-		URL checkIP = null;
-		BufferedReader in = null; 
-		String ip = null;
-		try {
-			checkIP = new URL("http://checkip.amazonaws.com");
-			in = new BufferedReader(new InputStreamReader(checkIP.openStream()));
-			ip = in.readLine();
-			in.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return ip;
+
+	@Override
+	public void start() {
+		
+	}
+
+	@Override
+	public void stop() {
+		
 	}
 }
