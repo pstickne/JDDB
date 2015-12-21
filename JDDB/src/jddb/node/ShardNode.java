@@ -11,6 +11,8 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
@@ -255,13 +257,10 @@ public class ShardNode extends Node
 				if( !COLLECTION.getCurrentCollectionFile().equals(c) )
 				{
 					try {
-						COLLECTION.save();
 						COLLECTION.connectTo(COLLECTION.getCurrentBasePath(), c);
 					} catch (FileNotFoundException e) {
 						out.println(e.toString());
 						out.println("\nSee: SHOW COLLECTIONS\n");
-					} catch (IOException e) {
-						out.println(e.toString());
 					}
 				}
 			}
@@ -308,19 +307,22 @@ public class ShardNode extends Node
 		// Issue commands on the database collection file
 		else if( cmd.toLowerCase().startsWith("db") )
 		{
-			parts = cmd.split(Pattern.quote("."));
+			parts = splitOnCharacter(cmd, '.');
+			
+			
 			
 			// output the collection itself
 			if( cmd.equalsIgnoreCase("db.collection") )
 				out.println(COLLECTION);
 			
 			
-			// Find a specific 
+			
+			// Find a specific set of records matching the query document
 			else if( cmd.toLowerCase().contains("db.collection.find") )
 			{
-				String 	funcCall = parts[2],
+				String	funcCall = parts[2],
 						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
-				String[] args = insideParens.split(Pattern.quote(","));
+				String[] args = splitOnCharacter(insideParens, ',');
 				
 				if( args.length == 1 )
 					out.println(COLLECTION.find(new Document(args[0])));
@@ -329,33 +331,45 @@ public class ShardNode extends Node
 				else
 					out.println("Illegal number of arguments to find()");
 			}
+			
+			
+			
+			// Insert a Document into the collection 
 			else if( cmd.toLowerCase().contains("db.collection.insert") )
 			{
 				String	funcCall = parts[2],
 						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
-				String[] args = insideParens.split(Pattern.quote(","));
+				String[] args = splitOnCharacter(insideParens, ',');
 				
 				if( args.length == 1 )
-					COLLECTION.insert(new Document(args[0]));
+					out.println(COLLECTION.insert(new Document(args[0])));
 				else
 					out.println("Illegal number of arguments to insert()");
 			}
+			
+			
+			
+			// Update a Document that is already in the collection
 			else if( cmd.toLowerCase().contains("db.collection.update") )
 			{
-				String 	funcCall = parts[2],
+				String	funcCall = parts[2],
 						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
-				String[] args = insideParens.split(Pattern.quote(","));
+				String[] args = splitOnCharacter(insideParens, ',');
 				
 				if( args.length == 2 )
 					out.println(COLLECTION.update(new Document(args[0]), new Document(args[1])));
 				else
 					out.println("Illegal number of arguments to find()");
 			}
+			
+			
+			
+			// Remove a Document from the collection
 			else if( cmd.toLowerCase().contains("db.collection.remove") )
 			{
-				String 	funcCall = parts[2],
+				String	funcCall = parts[2],
 						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
-				String[] args = insideParens.split(Pattern.quote(","));
+				String[] args = splitOnCharacter(insideParens, ',');
 				
 				if( args.length == 1 )
 					out.println(COLLECTION.remove(new Document(args[0])));
@@ -364,6 +378,10 @@ public class ShardNode extends Node
 				else
 					out.println("Illegal number of arguments to remove()");
 			}
+			
+			
+			
+			// Save the collection to disk
 			else if( cmd.toLowerCase().contains("db.collection.save") )
 			{
 				try {
@@ -371,6 +389,14 @@ public class ShardNode extends Node
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
+			} 
+			
+			
+			
+			// If nothing matches the call the user made, mark it as an error
+			else 
+			{
+				out.println("Unknown call to " + cmd);
 			}
 		}
 		else
@@ -384,6 +410,51 @@ public class ShardNode extends Node
 			out.println("");
 		}
 		out.flush();
+	}
+	
+	
+	/**
+	 * Split a string on a specific character. This will do a special split 
+	 * in which it will not split on the character if it is inside quotes {@code (")}
+	 * or curly braces {@code ({})}.
+	 * 
+	 * @param str The string to split
+	 * @param c The character to split on
+	 * @return A string array of {@code str} tokenized by {@code c}.
+	 */
+	public String[] splitOnCharacter(String str, Character c)
+	{
+		List<String> result = new ArrayList<>();
+		StringBuilder sb = new StringBuilder();
+		boolean inBrace = false, inQuote = false;
+		
+		// Loop through every character in the array
+		for( int i = 0; i < str.length(); i++ )
+		{
+			/*
+			 * if the character is found and we are not in a
+			 * curly brace or quote, add to the result array
+			 * and clear the string buffer
+			 */
+			if( str.charAt(i) == c && !inBrace && !inQuote ) {
+				result.add(sb.toString());
+				sb.setLength(0);
+				continue;
+			}
+			
+			if( str.charAt(i) == '{' )					inBrace = true;
+			else if( str.charAt(i) == '}' )				inBrace = false;
+			else if( str.charAt(i) == '"' && !inQuote )	inQuote = true;
+			else if( str.charAt(i) == '"' && inQuote )	inQuote = false;
+			
+			// Add every non-token character to the string buffer
+			sb.append(str.charAt(i));
+		}
+		
+		// Add everything in the string buffer after the last found token
+		result.add(sb.toString());
+		
+		return result.toArray(new String[result.size()]);
 	}
 	
 	public static void main(String ...args)

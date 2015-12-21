@@ -137,6 +137,17 @@ public class ServerNode extends Node
 		new ServerNode(prop).start();
 	}
 
+	
+	/**
+	 * This thread will handle the server socket accept method. 
+	 * It takes the result socket and sends a request to the 
+	 * new connection asking it to IDENTIFY itself.<br><br>
+	 * 
+	 * Once the connection returns a response with either
+	 * SHARD or CLIENT, the decider can then spawn a new
+	 * thread that matches the new connection's affiliation.
+	 * Finally, the decider thread will terminate itself.
+	 */
 	class DeciderThread extends Thread
 	{
 		private Socket socket = null;
@@ -154,6 +165,7 @@ public class ServerNode extends Node
 		
 		public void close()
 		{
+			// Close the socket connection if it is not null
 			try {
 				if( socket != null )
 					socket.close();
@@ -169,6 +181,14 @@ public class ServerNode extends Node
 			
 			System.out.println("\nNew connection from " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
 			
+			/*
+			 * Creates a process socket input listener.
+			 * 
+			 * This sole purpose is to listen for the next incoming
+			 * message from the socket with the affiliation of the 
+			 * new connection. It will then spawn a new affiliated thread
+			 * and then terminate itself.
+			 */
 			ProcessSocketInput psi = new ProcessSocketInput(socket) {
 				@Override
 				@SuppressWarnings("deprecation")
@@ -188,12 +208,22 @@ public class ServerNode extends Node
 			};
 			psi.start();
 			
+			/*
+			 * Send out the request to the new connection to determine
+			 * what exactly it is.
+			 */
 			System.out.printf("Asking affiliation...");
 			out.println("IDENTIFY");
 			out.flush();
 		}
 	}
 	
+	
+	/**
+	 * This thread will handle all client connections. 
+	 * 
+	 * 
+	 */
 	class ClientThread extends Thread 
 	{
 		private Socket socket = null;
@@ -253,6 +283,12 @@ public class ServerNode extends Node
 		}
 	}
 	
+	
+	/**
+	 * This thread will handle all shard connections. 
+	 * 
+	 * 
+	 */
 	class ShardThread extends Thread
 	{
 		private Socket socket = null;
