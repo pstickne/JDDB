@@ -12,10 +12,12 @@ import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import jddb.io.ProcessConsoleInput;
 import jddb.io.ProcessSocketInput;
 import jddb.nosql.Collection;
+import jddb.nosql.Document;
 
 public class ShardNode extends Node
 {
@@ -68,15 +70,15 @@ public class ShardNode extends Node
 	}
 	
 	/**
-	 * Calling this method on a Node will attempt to establish a connection
-	 * to the server address and port specified in the config file provided
-	 * to this application as a command line parameter.<br><br>
+	 * Calling this method on a {@link #ShardNode(Properties)} will attempt to 
+	 * establish a connection to the server address and port specified in the 
+	 * config file provided to this application as a command line parameter.<br><br>
 	 * 
-	 * Once a connection has been established, a socket input stream listener
-	 * will be created to listen for incoming requests from the server.<br><br>
-	 * 
-	 * Likewise, a local console input listener will be created to listen for
+	 * A local console input listener will be created to listen for
 	 * incoming requests made locally by the user.
+	 * 
+	 * Likewise, once a connection has been established, a socket input stream listener
+	 * will be created to listen for incoming requests from the server.<br><br>
 	 */
 	@Override
 	public void start() 
@@ -123,7 +125,7 @@ public class ShardNode extends Node
 				 * If this line throws an error because we can't connect,
 				 * we will jump down to the ConnectException catch handler
 				 * and do nothing but wait and try to connect again until
-				 * a conenction can be established.
+				 * a connection can be established.
 				 */
 				csock = new Socket(SERVER, PORT);
 				
@@ -136,8 +138,11 @@ public class ShardNode extends Node
 				 */
 				ProcessSocketInput pis = new ProcessSocketInput(csock) {
 					@Override
-					public void onStreamInput(String input) {
-						exec(csock, input);
+					public void onStreamInput(String input, boolean isError) {
+						if( isError ) 
+							System.out.println("Warning: " + input);
+						else
+							exec(csock, input);
 					}
 				};
 				pis.start();
@@ -228,12 +233,21 @@ public class ShardNode extends Node
 		if( cmd == null )
 			return;
 		
+		// Stop the shard
 		if( cmd.toLowerCase().equals("exit") )
 			System.exit(0);
 		
+		
+		// This lets the server know what kind of application 
+		// is connecting to the server.
+		else if( cmd.toLowerCase().equals("identify") )
+			out.println("SHARD");
+		
+		
+		// Change the JSON database file you are using
 		else if( cmd.toLowerCase().startsWith("use") )
 		{
-			parts = cmd.split(" ");
+			parts = cmd.split(Pattern.quote(" "));
 			if( parts.length == 2 )
 			{
 				String c = parts[1];
@@ -254,15 +268,19 @@ public class ShardNode extends Node
 			else
 				out.println("\nUsage: USE [collection_name]\n");
 		}
+		
+		
+		// Show or list some general info about the server status and collections
 		else if( cmd.toLowerCase().startsWith("show") || cmd.toLowerCase().startsWith("list") )
 		{
-			parts = cmd.split(" ");
+			parts = cmd.split(Pattern.quote(" "));
 			if( parts.length == 2 )
 			{
 				String c = parts[1];
 				
 				if( c.equalsIgnoreCase("collections") )
 				{
+					// Filter files by extension of ".json"
 					File file = new File(COLLECTION.getCurrentBasePath());
 					File files[] = file.listFiles(new FilenameFilter() {
 						@Override public boolean accept(File dir, String name) {
@@ -275,7 +293,7 @@ public class ShardNode extends Node
 				}
 				else if( c.equalsIgnoreCase("status") )
 				{
-					out.println("Using Server Address: " + (SERVER == null ? "localhost" : SERVER));
+					out.println("Using Server Address: " + (SERVER == null ? "127.0.0.1" : SERVER));
 					out.println("Using Base Path: " + COLLECTION.getCurrentBasePath());
 					out.println("Using Database: " + COLLECTION.getCurrentCollectionFile());
 				}
@@ -285,14 +303,79 @@ public class ShardNode extends Node
 			else
 				out.println("\nUsage: " + parts[0] + " [collections | status]\n");
 		}
-		else if( cmd.toLowerCase().startsWith("db.") )
+		
+		
+		// Issue commands on the database collection file
+		else if( cmd.toLowerCase().startsWith("db") )
 		{
-			parts = cmd.split(".");
+			parts = cmd.split(Pattern.quote("."));
 			
+			// output the collection itself
+			if( cmd.equalsIgnoreCase("db.collection") )
+				out.println(COLLECTION);
+			
+			
+			// Find a specific 
+			else if( cmd.toLowerCase().contains("db.collection.find") )
+			{
+				String 	funcCall = parts[2],
+						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
+				String[] args = insideParens.split(Pattern.quote(","));
+				
+				if( args.length == 1 )
+					out.println(COLLECTION.find(new Document(args[0])));
+				else if( args.length == 2 )
+					out.println(COLLECTION.find(new Document(args[0]), new Document(args[1])));
+				else
+					out.println("Illegal number of arguments to find()");
+			}
+			else if( cmd.toLowerCase().contains("db.collection.insert") )
+			{
+				String	funcCall = parts[2],
+						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
+				String[] args = insideParens.split(Pattern.quote(","));
+				
+				if( args.length == 1 )
+					COLLECTION.insert(new Document(args[0]));
+				else
+					out.println("Illegal number of arguments to insert()");
+			}
+			else if( cmd.toLowerCase().contains("db.collection.update") )
+			{
+				String 	funcCall = parts[2],
+						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
+				String[] args = insideParens.split(Pattern.quote(","));
+				
+				if( args.length == 2 )
+					out.println(COLLECTION.update(new Document(args[0]), new Document(args[1])));
+				else
+					out.println("Illegal number of arguments to find()");
+			}
+			else if( cmd.toLowerCase().contains("db.collection.remove") )
+			{
+				String 	funcCall = parts[2],
+						insideParens = funcCall.substring(funcCall.indexOf("(")+1, funcCall.indexOf(")"));
+				String[] args = insideParens.split(Pattern.quote(","));
+				
+				if( args.length == 1 )
+					out.println(COLLECTION.remove(new Document(args[0])));
+				else if( args.length == 2 )
+					out.println(COLLECTION.remove(new Document(args[0]), Boolean.parseBoolean(args[1])));
+				else
+					out.println("Illegal number of arguments to remove()");
+			}
+			else if( cmd.toLowerCase().contains("db.collection.save") )
+			{
+				try {
+					COLLECTION.save();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 		else
 		{
-			out.println("\nUsage: jddb.jar config.properties\n");
+			out.println("\nUsage: jddb-shard.jar config.properties\n");
 			out.println("Commands:");
 			out.printf("\t%-40s\t%s\n", "HELP", "Shows the help menu.");
 			out.printf("\t%-40s\t%s\n", "USE  [collection]", "Change your current document collection to the specified one.");
@@ -306,7 +389,7 @@ public class ShardNode extends Node
 	public static void main(String ...args)
 	{
 		if( args.length < 1 ) {
-			usage();
+			System.out.println("USAGE: ./jddb-shard config.properties\n");
 			return;
 		}
 		
@@ -329,10 +412,5 @@ public class ShardNode extends Node
 		}
 
 		new ShardNode(prop).start();
-	}
-	
-	public static void usage()
-	{
-		System.out.println("USAGE: ./JDDB config.properties\n");
 	}
 }

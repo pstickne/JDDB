@@ -24,32 +24,26 @@ public class Collection
 	
 	private JSONParser parser = null;
 	private JSONObject Jcollection = null;
-	private JSONObject Joptions = null;
 	private JSONArray Jdocuments = null;
 	
 	public Map<String, Object> collection = null;
-	public Map<String, Object> options = null;
 	public List<Document> documents = null;
 	
 	public Collection()
 	{
 		Jcollection = new JSONObject();
-		Joptions = new JSONObject();
 		Jdocuments = new JSONArray();
 		
 		collection = new HashMap<String, Object>();
-		options = new HashMap<String, Object>();
 		documents = new ArrayList<Document>();
 	}
 	
 	public Collection(String path, String name)
 	{
 		Jcollection = new JSONObject();
-		Joptions = new JSONObject();
 		Jdocuments = new JSONArray();
 		
 		collection = new HashMap<String, Object>();
-		options = new HashMap<String, Object>();
 		documents = new ArrayList<Document>();
 		
 		try {
@@ -81,11 +75,6 @@ public class Collection
 				Jcollection = new JSONObject();
 			}
 			
-			if( Jcollection.containsKey("options") )
-				Joptions = (JSONObject) Jcollection.get("options");
-			else
-				Joptions = new JSONObject();
-			
 			if( Jcollection.containsKey("documents") )
 				Jdocuments = (JSONArray) Jcollection.get("documents");
 			else
@@ -104,7 +93,9 @@ public class Collection
 			collectionFile.createNewFile();
 		}
 		
-		Jcollection.put("options", Joptions);
+		Jdocuments.clear();
+		Jdocuments.addAll(documents);
+		
 		Jcollection.put("documents", Jdocuments);
 		
 		FileOutputStream out = new FileOutputStream(collectionFile);
@@ -146,11 +137,23 @@ public class Collection
 	
 	
 	
-	
+	/**
+	 * Returns a database cursor for the matching Document query you are searching for
+	 * 
+	 * @param query The document query to search for
+	 * @return Database cursor matching the search query
+	 */
 	public Cursor find(Document query)
 	{
 		return find(query, new Document());
 	}
+	/**
+	 * Returns a database cursor for the matching Document query you are searching for
+	 * 
+	 * @param query The document query to search for
+	 * @param projection The JSON keys to keep or remove in the resulting cursor
+	 * @return Database cursor matching the seaerch query
+	 */
 	public Cursor find(Document query, Document projection)
 	{
 		return new Cursor(this, query, projection);
@@ -159,15 +162,26 @@ public class Collection
 	
 	
 	
-	
+	/**
+	 * Insert a new Document into the database
+	 * 
+	 * @param doc The Document to insert
+	 * @return true if successful, false otherwise
+	 */
 	public boolean insert(Document doc)
 	{
+		// generate a random key for the document if it does not contain one
 		if( !doc.containsKey("_id") )
 			doc.put("_id", UUID.randomUUID().toString());
 		
 		return documents.add(doc);
 	}
-	
+	/**
+	 * Inserts a list of Documents into the database
+	 * 
+	 * @param docs The Documents to insert
+	 * @return true if all of the inserts were successful, false otherwise
+	 */
 	public boolean insert(List<Document> docs)
 	{
 		boolean result = true;
@@ -182,7 +196,13 @@ public class Collection
 	
 	
 	
-	
+	/**
+	 * Updates a single matching document in the database
+	 * 
+	 * @param query The Document query to search for
+	 * @param update The new Document to replace
+	 * @return true if successful, false otherwise
+	 */
 	public boolean update(Document query, Document update)
 	{
 		Map<String, Boolean> options = new HashMap<String, Boolean>();
@@ -191,6 +211,14 @@ public class Collection
 		
 		return update(query, update, options);
 	}
+	/**
+	 * Updates single or multiple document(s) in the database
+	 * 
+	 * @param query The Document query to search for
+	 * @param update The new Document to replace 
+	 * @param options Option map containing upsert and multi values
+	 * @return true if successful, false otherwise
+	 */
 	public boolean update(Document query, Document update, Map<String, Boolean> options)
 	{
 		Document doc = null;
@@ -201,6 +229,8 @@ public class Collection
 			doc = cursor.next();
 			doc.copy(update);
 			
+			// if multi is not set, then just break out of the loop
+			// after we do a single update
 			if( !options.get("multi").booleanValue() )
 				break;
 		}
@@ -211,22 +241,41 @@ public class Collection
 	
 	
 	
-	
+	/**
+	 * Remove a single Document from the database
+	 * 
+	 * @param query The Document query to search for
+	 * @return true if successful, false otherwise
+	 */
 	public boolean remove(Document query)
 	{
 		return remove(query, false);
 	}
+	/**
+	 * Removes Document(s) from the database
+	 * 
+	 * @param query The Document query to search for
+	 * @param justOne true to remove a single Document, false to remove all matching Documents 
+	 * @return true if all removes were successful, false otherwise
+	 */
 	public boolean remove(Document query, boolean justOne)
 	{
+		boolean result = false;
 		Cursor cursor = find(query);
 		
 		while( cursor.hasNext() )
 		{
-			cursor.remove(cursor.next());
+			result &= cursor.remove(cursor.next());
 			if( justOne )
 				break;
 		}
 		
-		return true;
+		return result;
+	}
+	
+	@Override
+	public String toString() 
+	{
+		return documents.toString();
 	}
 }

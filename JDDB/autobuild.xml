@@ -4,9 +4,9 @@
 	<property name="build" location="build" />
 	<property name="app.version" value="1.0" />
 	<property name="app.name" value="JDDB" />
-	<property name="app.master" value="jddb-master.jar" />
+	<property name="app.client" value="jddb-client.jar" />
 	<property name="app.shard" value="jddb-shard.jar" />
-	<property name="app.manager" value="jddb-manager.jar" />
+	<property name="app.server" value="jddb-server.jar" />
 	<property name="base.dir" value="C:/jddb/" />
 	<tstamp><format property="build.time" pattern="yyyy-MM-dd HH:mm:ss" /></tstamp>
 	
@@ -37,43 +37,43 @@
 	
 	<target name="build-all" depends="build-bin">
 		
-		<antcall target="build-manager" />
-		<antcall target="build-master" />
+		<antcall target="build-server" />
+		<antcall target="build-client" />
 		<antcall target="build-shard" />
 	
 	</target>
 	
-	<target name="build-manager">
+	<target name="build-server">
 
-        <jar basedir="bin" destfile="build/${app.manager}">
+        <jar basedir="bin" destfile="build/${app.server}">
             <manifest>
             	<attribute name="Manifest-Version" value="1.0" />
             	<attribute name="Created-By" value="pstickne" />
-                <attribute name="Main-Class" value="jddb.node.ManagerNode" />
+                <attribute name="Main-Class" value="jddb.node.ServerNode" />
                 <attribute name="Class-Path" value="." />
             </manifest>
             <zipgroupfileset dir="libs" includes="**/*.jar" />
         </jar>
     	
-		<waitfor><available file="build/${app.manager}" /></waitfor>
-        <copy file="build/${app.manager}" todir="${base.dir}" />
+		<waitfor><available file="build/${app.server}" /></waitfor>
+        <copy file="build/${app.server}" todir="${base.dir}" />
     	
 	</target>
 	
-	<target name="build-master">
+	<target name="build-client">
 
-		<jar basedir="bin" destfile="build/${app.master}">
+		<jar basedir="bin" destfile="build/${app.client}">
             <manifest>
             	<attribute name="Manifest-Version" value="1.0" />
             	<attribute name="Created-By" value="pstickne" />
-                <attribute name="Main-Class" value="jddb.node.MasterNode" />
+                <attribute name="Main-Class" value="jddb.node.ClientNode" />
                 <attribute name="Class-Path" value="." />
             </manifest>
             <zipgroupfileset dir="libs" includes="**/*.jar" />
         </jar>
     	
-		<waitfor><available file="build/${app.master}" /></waitfor>
-        <copy file="build/${app.master}" todir="${base.dir}" />
+		<waitfor><available file="build/${app.client}" /></waitfor>
+        <copy file="build/${app.client}" todir="${base.dir}" />
     	
 	</target>
 	

@@ -99,8 +99,6 @@ public class Cursor implements Iterator<Document>
 	
 	@Override
 	public String toString() {
-		return "Query: " + query.toString() + "\n" +
-				"Projection: " + projection.toString() + "\n" +
-				"Documents: " + documents.toString();
+		return documents.toString();
 	}
 }
