@@ -7,8 +7,9 @@
   <groupId>com.pstickney.jddb</groupId>
   <artifactId>JDDB</artifactId>
   <packaging>pom</packaging>
-  <version>0.0.1</version>
+  <version>1.0.1</version>
   <modules>
+    <module>Core</module>
     <module>Client</module>
     <module>Server</module>
     <module>Shard</module>
