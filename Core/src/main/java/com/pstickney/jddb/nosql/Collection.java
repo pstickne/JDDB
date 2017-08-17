@@ -20,6 +20,10 @@ public class Collection
 	public Map<String, Object> collection = null;
 	public List<Document> documents = null;
 	
+	
+	/**
+	 * Construct an empty collection
+	 */
 	public Collection()
 	{
 		Jcollection = new JSONObject();
@@ -29,6 +33,13 @@ public class Collection
 		documents = new ArrayList<Document>();
 	}
 	
+	
+	/**
+	 * Construct a collection with a given path and file name
+	 * 
+	 * @param path The base path of the collection
+	 * @param name The file name of the collection
+	 */
 	public Collection(String path, String name)
 	{
 		Jcollection = new JSONObject();
@@ -44,6 +55,16 @@ public class Collection
 		}
 	}
 	
+	
+	/**
+	 * Connects to a new collection file.
+	 * 
+	 * @param path The base path of the collection
+	 * @param name The file name of the collection
+	 * @return This collection
+	 * 
+	 * @throws FileNotFoundException
+	 */
 	public Collection connectTo(String path, String name) throws FileNotFoundException
 	{
 		tempFile = new File(path, name);
@@ -54,10 +75,25 @@ public class Collection
 		return this;
 	}
 	
+	
+	/**
+	 * Loads the collection file off of disk.
+	 * 
+	 * @throws FileNotFoundException
+	 * @throws IOException
+	 */
 	public void load() throws FileNotFoundException, IOException 
 	{
 		parser = new JSONParser();
 
+		/*
+		 * If there currently is a collection file, load the
+		 * data contained in the file into memory so that we
+		 * can use it in this collection.
+		 * 
+		 * If no file exists, we already initialized all the
+		 * variables so they should be default.
+		 */
 		if( collectionFile.exists() )
 		{
 			try {
@@ -72,30 +108,42 @@ public class Collection
 				Jdocuments = new JSONArray();
 		}
 		
+		// Add the parsed documents to memory if there was a file
 		for( Object o : Jdocuments )
 			documents.add(new Document(o));
 	}
 	
+	
+	/**
+	 * Saves the collection to the disk.
+	 * 
+	 * This takes the in memory document list and converts it 
+	 * to a JSON compatible list of documents, then writes the 
+	 * JSON string to the file.
+	 * 
+	 * @throws IOException
+	 */
 	@SuppressWarnings("unchecked")
 	public void save() throws IOException
 	{
+		// Create the file if it doesn't exist
 		if( !collectionFile.exists() ) {
 			collectionFile.getParentFile().mkdirs();
 			collectionFile.createNewFile();
 		}
 		
+		// Add the documents to JSON array
 		Jdocuments.clear();
 		Jdocuments.addAll(documents);
-		
 		Jcollection.put("documents", Jdocuments);
-		
+
+		// Write the file out to disk
 		FileOutputStream out = new FileOutputStream(collectionFile);
 		out.write(Jcollection.toJSONString().getBytes());
 		out.flush();
 		out.getFD().sync();
 		out.close();
 	}
-	
 	
 	
 	
@@ -119,7 +167,11 @@ public class Collection
 	
 	
 	
-	
+	/**
+	 * Deletes this collection file
+	 * 
+	 * @return true if the file was successfully deleted 
+	 */
 	public boolean drop()
 	{
 		return collectionFile.delete();

@@ -133,6 +133,9 @@ public class ShardNode extends Node
 				ProcessSocketInput pis = new ProcessSocketInput(csock) {
 					@Override
 					public void onStreamInput(String input, boolean isError) {
+						if( input == null )
+							return;
+						
 						if( isError ) 
 							System.out.println("Warning: " + input);
 						else

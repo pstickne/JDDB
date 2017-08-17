@@ -36,7 +36,10 @@ public class ServerNode extends Node
 	}
 	
 	/**
-	 * Calling this method on a {@link #ServerNode(Properties)} 
+	 * Calling this method on a {@link #ServerNode(Properties)} will
+	 * start up the server socket and listen for incoming connections.
+	 * 
+	 * 
 	 */
 	@Override
 	public void start()
@@ -47,6 +50,12 @@ public class ServerNode extends Node
 		shards = new ArrayList<ShardThread>();
 		
 		System.out.println("\nServerNode is starting up...");
+		
+		/*
+		 * Creates a server socket and binds to the specified port.
+		 * We will maintain a backlog queue of 500 to process the requests.
+		 * If the port is already in use, tell the user and exit the program 
+		 */
 		try {
 			ssock = new ServerSocket(PORT, 500);
 		} catch (BindException e) {
@@ -55,13 +64,23 @@ public class ServerNode extends Node
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
+		/*
+		 * Register a new virtual machine shutdown hook.
+		 * The JVM will run this code in response to two kinds of events:
+		 * 
+		 * 		1) 	The program exits normally, when the last non-daemon thread exists
+		 * 			or when the exit method is invoked
+		 * 		2)	The JVM is terminated in response to a user interrupt, such as 
+		 * 			typing ^C or such as when the user logs off or system shuts down.
+		 */
 		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
 			@Override public void run() {
 				stop();
 			}
 		}));
 
+		
 		System.out.println("ServerNode is listening for shard servers on port " + PORT);
 		while( true )
 		{
@@ -73,12 +92,22 @@ public class ServerNode extends Node
 		}
 	}
 	
+	
+	/**
+	 * This stop is special in the case that is contains multiple 
+	 * client and shard threads that all need to be closed once this
+	 * application is stopped.
+	 */
 	@Override
 	public void stop()
 	{
 		super.stop();
 		System.out.println("\nServerNode is shutting down...");
 		
+		/*
+		 * Loop over all the clients in the client list
+		 * and call the close function on each of those threads
+		 */
 		System.out.println("Closing all ClientNode connections");
 		ClientThread ct = null;
 		while( !clients.isEmpty() )
@@ -86,6 +115,11 @@ public class ServerNode extends Node
 			ct = clients.get(0);
 			ct.close();
 		}
+		
+		/*
+		 * Loop over all the shards in the shard list
+		 * and call the close function on each of those threads
+		 */
 		System.out.println("Closing all ShardNode connections");
 		ShardThread st = null;
 		while( !shards.isEmpty() )
@@ -94,6 +128,7 @@ public class ServerNode extends Node
 			st.close();
 		}
 		
+		// Finally, close this application's server socket
 		try {
 			if( ssock != null )
 				ssock.close();
@@ -197,6 +232,12 @@ public class ServerNode extends Node
 						return;
 					
 					System.out.println(input);
+					
+					/*
+					 * Here we check if the return value from the 
+					 * call to IDENTIFY is equal to "CLIENT" or "SHARD"
+					 * and create corresponding threads for both.
+					 */
 					if( input.equalsIgnoreCase("client") ) {
 						new ClientThread(socket).start();
 						Thread.currentThread().stop();
@@ -220,9 +261,7 @@ public class ServerNode extends Node
 	
 	
 	/**
-	 * This thread will handle all client connections. 
-	 * 
-	 * 
+	 * This thread will handle all client connections that connect to the server. 
 	 */
 	class ClientThread extends Thread 
 	{
@@ -237,6 +276,12 @@ public class ServerNode extends Node
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+		
+		public void send(String str)
+		{
+			out.println(str);
+			out.flush();
 		}
 		
 		public void close()
@@ -259,6 +304,12 @@ public class ServerNode extends Node
 			System.out.println("Adding new client thread to client list.");
 			clients.add(this);
 			
+			/*
+			 * Creates a process socket input listener
+			 * 
+			 * Here we want to listen for any requests coming form the clients.
+			 * In general, we want to Map the message out to all the shard nodes.
+			 */
 			ProcessSocketInput psi = new ProcessSocketInput(socket) {
 				@Override
 				public void onStreamInput(String input, boolean isError) {
@@ -285,9 +336,7 @@ public class ServerNode extends Node
 	
 	
 	/**
-	 * This thread will handle all shard connections. 
-	 * 
-	 * 
+	 * This thread will handle all shard connections that connect to the server.
 	 */
 	class ShardThread extends Thread
 	{
@@ -330,6 +379,13 @@ public class ServerNode extends Node
 			System.out.println("Adding new shard thread to shard list.");
 			shards.add(this);
 			
+			/*
+			 * Creates a process socket input listener.
+			 * 
+			 * Here we listen for responses coming form the shard. 
+			 * In general, this will be results from user commands
+			 * that have been previously sent to the shards
+			 */
 			ProcessSocketInput psi = new ProcessSocketInput(socket) {
 				@Override
 				public void onStreamInput(String input, boolean isError) {
@@ -341,7 +397,8 @@ public class ServerNode extends Node
 					if( isError )
 						out.println("Warning: " + input);
 					else {
-						out.println(input);
+						for( ClientThread ct : clients )
+							ct.send(input);
 					}
 					out.flush();
 				}
