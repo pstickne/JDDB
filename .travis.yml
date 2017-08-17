@@ -1,0 +1,17 @@
+sudo: false
+
+language: java
+
+jdk:
+ - oraclejdk8
+
+notifications:
+ email: false
+
+branches:
+ only:
+  - development
+
+install: true
+
+script: mvn clean install
