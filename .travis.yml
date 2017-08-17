@@ -8,10 +8,6 @@ jdk:
 notifications:
  email: false
 
-branches:
- only:
-  - development
-
 install: true
 
 script: mvn clean install
